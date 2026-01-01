@@ -100,6 +100,8 @@ function RegistrarEstudiante() {
         newData.grado = ''
         if (value === 'Fin de semana') {
           newData.jornada = 'Completa' // Automático para fin de semana
+        } else if (value === 'Curso extra') {
+          newData.jornada = 'Variable' // Automático para curso extra
         } else {
           newData.jornada = ''
         }
@@ -135,13 +137,12 @@ function RegistrarEstudiante() {
     
     // Validaciones básicas comunes
     if (!formData.nombre || !formData.apellidos || !formData.nombre_encargado || 
-        !formData.telefono_encargado || !formData.jornada || 
-        !formData.modalidad || !formData.fecha_nacimiento) {
+        !formData.telefono_encargado || !formData.modalidad || !formData.fecha_nacimiento) {
       toast.error('Por favor completa todos los campos')
       return
     }
 
-    // Validaciones según tipo de estudiante
+    // Validaciones según tipo de estudiante y modalidad
     if (formData.tipo_estudiante === 'CURSO') {
       // Para curso extra: debe seleccionar un curso
       if (!formData.curso_extra_id) {
@@ -154,6 +155,12 @@ function RegistrarEstudiante() {
         toast.error('Por favor selecciona el grado')
         return
       }
+    }
+
+    // Validar jornada solo para modalidad Diario
+    if (formData.modalidad === 'Diario' && !formData.jornada) {
+      toast.error('Por favor selecciona la jornada')
+      return
     }
 
     setLoading(true)
