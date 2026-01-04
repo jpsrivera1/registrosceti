@@ -44,6 +44,7 @@ function Uniformes() {
   const [categorias, setCategorias] = useState([])
   const [tallasRegistradas, setTallasRegistradas] = useState([])
   const [tallasForm, setTallasForm] = useState({})
+  const [cantidadesForm, setCantidadesForm] = useState({}) // Nuevo estado para cantidades
   const [loading, setLoading] = useState(false)
   const [buscando, setBuscando] = useState(false)
   const [guardando, setGuardando] = useState(false)
@@ -107,12 +108,15 @@ function Uniformes() {
       const resTallas = await obtenerTallasEstudiante(estudiante.id)
       setTallasRegistradas(resTallas.data.data || [])
 
-      // Inicializar formulario con tallas existentes
+      // Inicializar formulario con tallas y cantidades existentes
       const tallasExistentes = {}
+      const cantidadesExistentes = {}
       resTallas.data.data?.forEach(t => {
         tallasExistentes[t.uniform_items.id] = t.talla
+        cantidadesExistentes[t.uniform_items.id] = t.cantidad || 1
       })
       setTallasForm(tallasExistentes)
+      setCantidadesForm(cantidadesExistentes)
 
     } catch (error) {
       console.error(error)
@@ -130,6 +134,14 @@ function Uniformes() {
     }))
   }
 
+  // Cambiar cantidad de prenda
+  const handleCantidadChange = (itemId, cantidad) => {
+    setCantidadesForm(prev => ({
+      ...prev,
+      [itemId]: parseInt(cantidad) || 1
+    }))
+  }
+
   // Guardar tallas
   const handleGuardarTallas = async () => {
     // Filtrar solo las tallas que tienen valor
@@ -137,7 +149,8 @@ function Uniformes() {
       .filter(([_, talla]) => talla && talla !== '')
       .map(([itemId, talla]) => ({
         item_id: itemId,
-        talla: talla
+        talla: talla,
+        cantidad: cantidadesForm[itemId] || 1
       }))
 
     if (tallasAGuardar.length === 0) {
@@ -288,10 +301,12 @@ function Uniformes() {
                       <i className={`bi ${getIconoPrenda(item.nombre)} mr-2 text-lime-500`}></i>
                       {item.nombre}
                     </label>
+                    
+                    {/* Select de talla */}
                     <select
                       value={tallasForm[item.id] || ''}
                       onChange={(e) => handleTallaChange(item.id, e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-lime-500 focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-lime-500 focus:border-transparent mb-2"
                     >
                       <option value="">-- Seleccionar talla --</option>
                       {TALLAS_DISPONIBLES.map((talla) => (
@@ -300,6 +315,20 @@ function Uniformes() {
                         </option>
                       ))}
                     </select>
+
+                    {/* Input de cantidad */}
+                    <div className="flex items-center gap-2">
+                      <label className="text-xs text-gray-600">Cantidad:</label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="99"
+                        value={cantidadesForm[item.id] || 1}
+                        onChange={(e) => handleCantidadChange(item.id, e.target.value)}
+                        className="w-20 px-2 py-1 text-center border border-gray-300 rounded focus:ring-2 focus:ring-lime-500 focus:border-transparent"
+                      />
+                    </div>
+                    
                     {tallasForm[item.id] && (
                       <p className="mt-2 text-sm text-green-600 flex items-center gap-1">
                         <i className="bi bi-check-circle"></i>
@@ -347,6 +376,7 @@ function Uniformes() {
                       <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">Prenda</th>
                       <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">Categoría</th>
                       <th className="px-4 py-3 text-center text-sm font-semibold text-gray-600">Talla</th>
+                      <th className="px-4 py-3 text-center text-sm font-semibold text-gray-600">Cantidad</th>
                       <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">Fecha Registro</th>
                     </tr>
                   </thead>
@@ -363,6 +393,11 @@ function Uniformes() {
                         <td className="px-4 py-3 text-center">
                           <span className="px-3 py-1 bg-lime-100 text-lime-700 rounded-full font-medium">
                             {talla.talla}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full font-medium">
+                            {talla.cantidad || 1}
                           </span>
                         </td>
                         <td className="px-4 py-3 text-gray-500 text-sm">
