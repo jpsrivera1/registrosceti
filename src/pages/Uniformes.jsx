@@ -9,7 +9,7 @@ import {
 } from '../services/api'
 
 // Opciones de tallas disponibles
-const TALLAS_DISPONIBLES = ['8', '10', '12', '14', 'XS', 'S', 'M', 'L', 'XL']
+const TALLAS_DISPONIBLES = ['6', '8', '10', '12', '14', 'XS', 'S', 'M', 'L', 'XL']
 
 // Mapeo de iconos para cada prenda
 const ICONOS_PRENDAS = {
