@@ -13,13 +13,55 @@ function ListaEstudiantes() {
   const [filterJornada, setFilterJornada] = useState('')
   const [filterModalidad, setFilterModalidad] = useState('')
 
-  const GRADOS = [
-    'Kinder', 'Prepa', '1ro Primaria', '2do Primaria', '3ro Primaria',
-    '7mo', '8vo', '9no', '4to BACO', '5to BACO', '4to PCB', '5to PCB', '6to PCB'
-  ]
+  // Obtener opciones únicas de modalidades desde los datos
+  const getModalidadesDisponibles = () => {
+    const modalidades = new Set(estudiantes.map(est => est.modalidad).filter(Boolean))
+    return Array.from(modalidades).sort()
+  }
 
-  const JORNADAS = ['Matutina', 'Vespertina']
-  const MODALIDADES = ['Diario', 'Fin de semana', 'Curso extra']
+  // Obtener jornadas disponibles según la modalidad seleccionada
+  const getJornadasDisponibles = () => {
+    if (!filterModalidad) {
+      const jornadas = new Set(estudiantes.map(est => est.jornada).filter(Boolean))
+      return Array.from(jornadas).sort()
+    }
+    const jornadas = new Set(
+      estudiantes
+        .filter(est => est.modalidad === filterModalidad)
+        .map(est => est.jornada)
+        .filter(Boolean)
+    )
+    return Array.from(jornadas).sort()
+  }
+
+  // Obtener grados disponibles según modalidad y jornada seleccionadas
+  const getGradosDisponibles = () => {
+    let estudiantesFiltrados = estudiantes
+    
+    if (filterModalidad) {
+      estudiantesFiltrados = estudiantesFiltrados.filter(est => est.modalidad === filterModalidad)
+    }
+    
+    if (filterJornada) {
+      estudiantesFiltrados = estudiantesFiltrados.filter(est => est.jornada === filterJornada)
+    }
+    
+    const grados = new Set(estudiantesFiltrados.map(est => est.grado).filter(Boolean))
+    return Array.from(grados).sort()
+  }
+
+  // Manejar cambio de modalidad (resetear jornada y grado)
+  const handleModalidadChange = (value) => {
+    setFilterModalidad(value)
+    setFilterJornada('')
+    setFilterGrado('')
+  }
+
+  // Manejar cambio de jornada (resetear grado)
+  const handleJornadaChange = (value) => {
+    setFilterJornada(value)
+    setFilterGrado('')
+  }
 
   useEffect(() => {
     cargarEstudiantes()
@@ -223,33 +265,35 @@ function ListaEstudiantes() {
             />
           </div>
           <select
-            value={filterGrado}
-            onChange={(e) => setFilterGrado(e.target.value)}
+            value={filterModalidad}
+            onChange={(e) => handleModalidadChange(e.target.value)}
             className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
           >
-            <option value="">Todos los grados</option>
-            {GRADOS.map(grado => (
-              <option key={grado} value={grado}>{grado}</option>
+            <option value="">Todas las modalidades</option>
+            {getModalidadesDisponibles().map(modalidad => (
+              <option key={modalidad} value={modalidad}>{modalidad}</option>
             ))}
           </select>
           <select
             value={filterJornada}
-            onChange={(e) => setFilterJornada(e.target.value)}
+            onChange={(e) => handleJornadaChange(e.target.value)}
             className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+            disabled={!filterModalidad}
           >
             <option value="">Todas las jornadas</option>
-            {JORNADAS.map(jornada => (
+            {getJornadasDisponibles().map(jornada => (
               <option key={jornada} value={jornada}>{jornada}</option>
             ))}
           </select>
           <select
-            value={filterModalidad}
-            onChange={(e) => setFilterModalidad(e.target.value)}
+            value={filterGrado}
+            onChange={(e) => setFilterGrado(e.target.value)}
             className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+            disabled={!filterModalidad || !filterJornada}
           >
-            <option value="">Todas las modalidades</option>
-            {MODALIDADES.map(modalidad => (
-              <option key={modalidad} value={modalidad}>{modalidad}</option>
+            <option value="">Todos los grados</option>
+            {getGradosDisponibles().map(grado => (
+              <option key={grado} value={grado}>{grado}</option>
             ))}
           </select>
         </div>
