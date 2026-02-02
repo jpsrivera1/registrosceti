@@ -1,6 +1,6 @@
 import axios from 'axios'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
+const API_URL = import.meta.env.VITE_API_URL || 'https://backgeneralsistemaceti.onrender.com/api'
 
 const api = axios.create({
   baseURL: API_URL,
@@ -55,5 +55,21 @@ export const obtenerPagosCurso = (estudianteId) => api.get(`/cursos/pagos-curso/
 export const verificarMesPagadoCurso = (estudianteId, mesId) => api.get(`/cursos/pagos-curso/verificar/${estudianteId}/${mesId}`)
 export const registrarPagoCurso = (data) => api.post('/cursos/pagos-curso', data)
 export const obtenerResumenPagosCursos = (estudianteId) => api.get(`/cursos/pagos-curso/resumen/${estudianteId}`)
+
+// Asistencias
+export const asignarUID = (studentId, uid_tarjeta) => api.put(`/asistencias/estudiante/${studentId}/uid`, { uid_tarjeta })
+export const obtenerUltimoUID = () => api.get('/asistencias/ultimo-uid')
+export const obtenerEstudiantePorUID = (uid) => api.get(`/asistencias/uid/${uid}`)
+export const registrarAsistencia = (uid_tarjeta) => api.post('/asistencias/marcar', { uid_tarjeta })
+export const obtenerAsistencias = (fecha) => api.get('/asistencias', { params: { fecha } })
+export const obtenerHistorialEstudiante = (studentId, mes, anio) => api.get(`/asistencias/estudiante/${studentId}/historial`, { params: { mes, anio } })
+
+// Docentes
+export const registrarDocente = (data) => api.post('/docentes', data).then(res => res.data)
+export const obtenerDocentes = (params) => api.get('/docentes', { params }).then(res => res.data)
+export const obtenerDocente = (id) => api.get(`/docentes/${id}`).then(res => res.data)
+export const obtenerDocentePorUID = (uid) => api.get(`/docentes/uid/${uid}`).then(res => res.data)
+export const asignarUIDDocente = (docenteId, uid_tarjeta) => api.put(`/docentes/${docenteId}/uid`, { uid_tarjeta }).then(res => res.data)
+export const actualizarEstadoDocente = (docenteId, estado) => api.put(`/docentes/${docenteId}/estado`, { estado }).then(res => res.data)
 
 export default api

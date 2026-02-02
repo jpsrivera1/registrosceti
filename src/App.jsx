@@ -56,7 +56,7 @@ function App() {
     <Router>
       <div className="min-h-screen bg-gray-100">
         {user && <Navbar user={user} onLogout={handleLogout} />}
-        <main className={user ? "container mx-auto px-4 py-8" : ""}>
+        <main className={user ? "ml-64 px-8 py-8" : ""}>
           <Routes>
             <Route 
               path="/login" 

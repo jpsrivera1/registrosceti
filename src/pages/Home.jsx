@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 
 function Home() {
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="max-w-6xl mx-auto">
       <div className="text-center mb-12">
         <h1 className="text-4xl font-bold text-gray-800 mb-4 flex items-center justify-center gap-3">
           <i className="bi bi-mortarboard-fill text-blue-600"></i>
@@ -13,7 +13,8 @@ function Home() {
         </p>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-6">
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {/* Registrar Estudiante */}
         <Link
           to="/registrar"
           className="bg-white p-8 rounded-xl shadow-md hover:shadow-lg transition-shadow border-l-4 border-green-500"
@@ -27,6 +28,7 @@ function Home() {
           </p>
         </Link>
 
+        {/* Ver Estudiantes */}
         <Link
           to="/estudiantes"
           className="bg-white p-8 rounded-xl shadow-md hover:shadow-lg transition-shadow border-l-4 border-blue-500"
@@ -37,6 +39,48 @@ function Home() {
           <h2 className="text-2xl font-bold text-gray-800 mb-2">Ver Estudiantes</h2>
           <p className="text-gray-600">
             Consulta, edita o elimina los registros de estudiantes
+          </p>
+        </Link>
+
+        {/* Pagos */}
+        <Link
+          to="/pagos"
+          className="bg-white p-8 rounded-xl shadow-md hover:shadow-lg transition-shadow border-l-4 border-yellow-500"
+        >
+          <div className="text-4xl mb-4 text-yellow-500">
+            <i className="bi bi-cash-stack"></i>
+          </div>
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">Pagos</h2>
+          <p className="text-gray-600">
+            Gestiona los pagos de matrícula y graduación
+          </p>
+        </Link>
+
+        {/* Cursos Extra */}
+        <Link
+          to="/pagos-cursos"
+          className="bg-white p-8 rounded-xl shadow-md hover:shadow-lg transition-shadow border-l-4 border-indigo-500"
+        >
+          <div className="text-4xl mb-4 text-indigo-500">
+            <i className="bi bi-book"></i>
+          </div>
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">Cursos Extra</h2>
+          <p className="text-gray-600">
+            Administra los cursos extracurriculares y sus pagos
+          </p>
+        </Link>
+
+        {/* Uniformes */}
+        <Link
+          to="/uniformes"
+          className="bg-white p-8 rounded-xl shadow-md hover:shadow-lg transition-shadow border-l-4 border-pink-500"
+        >
+          <div className="text-4xl mb-4 text-pink-500">
+            <i className="bi bi-person-badge-fill"></i>
+          </div>
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">Uniformes</h2>
+          <p className="text-gray-600">
+            Registro de tallas y pedidos de uniformes
           </p>
         </Link>
       </div>
