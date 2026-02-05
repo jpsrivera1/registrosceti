@@ -320,7 +320,7 @@ function Uniformes() {
   }
 
   // Generar recibo en PDF
-  const generarReciboPDF = (pago) => {
+  const generarReciboPDF = (data) => {
     const doc = new jsPDF()
     const pageWidth = doc.internal.pageSize.width
     
@@ -336,7 +336,7 @@ function Uniformes() {
     doc.setFontSize(12)
     doc.setFont('helvetica', 'normal')
     doc.text('Orden de Uniforme', pageWidth / 2, 25, { align: 'center' })
-    doc.text(`No. ${pago.receipt_number}`, pageWidth / 2, 33, { align: 'center' })
+    doc.text(`No. ${data.numeroRecibo}`, pageWidth / 2, 33, { align: 'center' })
     
     // Información del estudiante
     doc.setTextColor(0, 0, 0)
@@ -346,9 +346,8 @@ function Uniformes() {
     
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(10)
-    doc.text(`Nombre: ${pago.student_name}`, 14, 58)
-    doc.text(`Grado: ${pago.student_grade || 'N/A'}`, 14, 64)
-    doc.text(`Carnet: ${pago.student_carnet || 'N/A'}`, 14, 70)
+    doc.text(`Nombre: ${data.estudiante.nombre} ${data.estudiante.apellidos}`, 14, 58)
+    doc.text(`Grado: ${data.estudiante.grado || 'N/A'}`, 14, 64)
     
     // Información de la orden
     doc.setFont('helvetica', 'bold')
@@ -367,9 +366,9 @@ function Uniformes() {
     
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(10)
-    doc.text(`Monto Pagado: Q ${pago.amount.toFixed(2)}`, 14, 116)
-    doc.text(`Método de Pago: ${pago.payment_method_name}`, 14, 122)
-    doc.text(`Fecha: ${new Date(pago.payment_date).toLocaleDateString('es-GT', {
+    doc.text(`Monto Pagado: Q ${data.pago.amount.toFixed(2)}`, 14, 116)
+    doc.text(`Método de Pago: ${data.metodo_pago}`, 14, 122)
+    doc.text(`Fecha: ${new Date(data.pago.payment_date).toLocaleDateString('es-GT', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
@@ -378,8 +377,8 @@ function Uniformes() {
     })}`, 14, 128)
     
     // Estado de la orden después del pago
-    const nuevoSaldoPendiente = ordenSeleccionada.pending_amount - pago.amount
-    const nuevoSaldoPagado = ordenSeleccionada.paid_amount + pago.amount
+    const nuevoSaldoPendiente = data.orden.pending_amount
+    const nuevoSaldoPagado = data.orden.paid_amount
     
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(11)
@@ -405,7 +404,7 @@ function Uniformes() {
     doc.text('Conserve este recibo para cualquier aclaración', pageWidth / 2, 285, { align: 'center' })
     
     // Guardar PDF
-    doc.save(`Recibo_${pago.receipt_number}_${new Date().getTime()}.pdf`)
+    doc.save(`Recibo_${data.numeroRecibo}_${new Date().getTime()}.pdf`)
   }
 
   return (
@@ -729,7 +728,7 @@ function Uniformes() {
                               Q {pago.amount.toFixed(2)}
                             </span>
                             <span className="text-gray-600">
-                              {pago.payment_methods?.nombre || 'N/A'}
+                              {pago.payment_methods?.name || 'N/A'}
                             </span>
                             <span className="text-gray-500">
                               {new Date(pago.payment_date).toLocaleDateString('es-GT')}
@@ -894,7 +893,7 @@ function Uniformes() {
                   <option value="">Selecciona un método</option>
                   {metodosPago.map((metodo) => (
                     <option key={metodo.id} value={metodo.id}>
-                      {metodo.nombre}
+                      {metodo.name}
                     </option>
                   ))}
                 </select>
