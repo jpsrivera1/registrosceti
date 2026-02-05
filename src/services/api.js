@@ -46,6 +46,12 @@ export const obtenerTallasEstudiante = (studentId) => api.get(`/uniformes/tallas
 export const guardarTallas = (studentId, tallas) => api.post(`/uniformes/tallas/${studentId}`, { tallas })
 export const eliminarTalla = (id) => api.delete(`/uniformes/tallas/${id}`)
 
+// Uniformes - Órdenes
+export const crearOrdenUniforme = (data) => api.post('/uniformes/ordenes', data)
+export const obtenerOrdenesEstudiante = (studentId) => api.get(`/uniformes/ordenes/estudiante/${studentId}`)
+export const obtenerOrden = (orderId) => api.get(`/uniformes/ordenes/${orderId}`)
+export const registrarPagoOrden = (orderId, data) => api.post(`/uniformes/ordenes/${orderId}/pagos`, data)
+
 // Cursos Extra
 export const obtenerCursosExtra = () => api.get('/cursos/cursos-extra')
 export const obtenerEstudiantesCursos = () => api.get('/cursos/estudiantes-cursos')

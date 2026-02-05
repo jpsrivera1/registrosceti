@@ -1,11 +1,17 @@
 import { useState, useEffect } from 'react'
 import toast from 'react-hot-toast'
+import jsPDF from 'jspdf'
+import 'jspdf-autotable'
 import {
   buscarEstudiantesUniforme,
   obtenerCategoriaEstudiante,
   obtenerTallasEstudiante,
   guardarTallas,
-  obtenerCategorias
+  obtenerCategorias,
+  crearOrdenUniforme,
+  obtenerOrdenesEstudiante,
+  registrarPagoOrden,
+  obtenerMetodosPago
 } from '../services/api'
 
 // Opciones de tallas disponibles
@@ -49,6 +55,21 @@ function Uniformes() {
   const [buscando, setBuscando] = useState(false)
   const [guardando, setGuardando] = useState(false)
   const [todasCategorias, setTodasCategorias] = useState([])
+
+  // Estados para órdenes de uniforme
+  const [ordenes, setOrdenes] = useState([])
+  const [modalOrden, setModalOrden] = useState(false)
+  const [modalPago, setModalPago] = useState(false)
+  const [ordenSeleccionada, setOrdenSeleccionada] = useState(null)
+  const [metodosPago, setMetodosPago] = useState([])
+  const [formOrden, setFormOrden] = useState({
+    descripcion: '',
+    total_amount: ''
+  })
+  const [formPago, setFormPago] = useState({
+    amount: '',
+    payment_method_id: ''
+  })
 
   // Cargar todas las categorías al inicio
   useEffect(() => {
@@ -118,6 +139,9 @@ function Uniformes() {
       setTallasForm(tallasExistentes)
       setCantidadesForm(cantidadesExistentes)
 
+      // Cargar órdenes del estudiante
+      await cargarOrdenes(estudiante.id)
+
     } catch (error) {
       console.error(error)
       toast.error('Error al cargar información del estudiante')
@@ -180,6 +204,208 @@ function Uniformes() {
     setCategorias([])
     setTallasRegistradas([])
     setTallasForm({})
+    setOrdenes([])
+  }
+
+  // Cargar métodos de pago
+  useEffect(() => {
+    const cargarMetodosPago = async () => {
+      try {
+        const response = await obtenerMetodosPago()
+        setMetodosPago(response.data.data || [])
+      } catch (error) {
+        console.error('Error cargando métodos de pago:', error)
+      }
+    }
+    cargarMetodosPago()
+  }, [])
+
+  // Cargar órdenes del estudiante
+  const cargarOrdenes = async (studentId) => {
+    try {
+      const response = await obtenerOrdenesEstudiante(studentId)
+      setOrdenes(response.data.data || [])
+    } catch (error) {
+      console.error('Error cargando órdenes:', error)
+      toast.error('Error al cargar las órdenes')
+    }
+  }
+
+  // Abrir modal para crear orden
+  const abrirModalOrden = () => {
+    setFormOrden({
+      descripcion: '',
+      total_amount: ''
+    })
+    setModalOrden(true)
+  }
+
+  // Crear nueva orden
+  const handleCrearOrden = async (e) => {
+    e.preventDefault()
+    
+    if (!formOrden.descripcion || !formOrden.total_amount) {
+      toast.error('Completa todos los campos')
+      return
+    }
+
+    if (parseFloat(formOrden.total_amount) <= 0) {
+      toast.error('El monto debe ser mayor a 0')
+      return
+    }
+
+    try {
+      await crearOrdenUniforme({
+        student_id: estudianteSeleccionado.id,
+        descripcion: formOrden.descripcion,
+        total_amount: parseFloat(formOrden.total_amount)
+      })
+      
+      toast.success('Orden creada correctamente')
+      setModalOrden(false)
+      await cargarOrdenes(estudianteSeleccionado.id)
+    } catch (error) {
+      console.error('Error creando orden:', error)
+      toast.error('Error al crear la orden')
+    }
+  }
+
+  // Abrir modal para pagar
+  const abrirModalPago = (orden) => {
+    setOrdenSeleccionada(orden)
+    setFormPago({
+      amount: orden.pending_amount.toString(),
+      payment_method_id: metodosPago[0]?.id || ''
+    })
+    setModalPago(true)
+  }
+
+  // Registrar pago
+  const handleRegistrarPago = async (e) => {
+    e.preventDefault()
+
+    if (!formPago.amount || !formPago.payment_method_id) {
+      toast.error('Completa todos los campos')
+      return
+    }
+
+    const monto = parseFloat(formPago.amount)
+    if (monto <= 0) {
+      toast.error('El monto debe ser mayor a 0')
+      return
+    }
+
+    if (monto > ordenSeleccionada.pending_amount) {
+      toast.error('El monto no puede ser mayor al saldo pendiente')
+      return
+    }
+
+    try {
+      const response = await registrarPagoOrden(ordenSeleccionada.id, {
+        amount: monto,
+        payment_method_id: formPago.payment_method_id
+      })
+
+      toast.success('Pago registrado correctamente')
+      
+      // Generar recibo PDF
+      generarReciboPDF(response.data.data)
+      
+      setModalPago(false)
+      await cargarOrdenes(estudianteSeleccionado.id)
+    } catch (error) {
+      console.error('Error registrando pago:', error)
+      toast.error(error.response?.data?.message || 'Error al registrar el pago')
+    }
+  }
+
+  // Generar recibo en PDF
+  const generarReciboPDF = (pago) => {
+    const doc = new jsPDF()
+    const pageWidth = doc.internal.pageSize.width
+    
+    // Encabezado
+    doc.setFillColor(34, 197, 94) // Verde lime
+    doc.rect(0, 0, pageWidth, 40, 'F')
+    
+    doc.setTextColor(255, 255, 255)
+    doc.setFontSize(20)
+    doc.setFont('helvetica', 'bold')
+    doc.text('RECIBO DE PAGO', pageWidth / 2, 15, { align: 'center' })
+    
+    doc.setFontSize(12)
+    doc.setFont('helvetica', 'normal')
+    doc.text('Orden de Uniforme', pageWidth / 2, 25, { align: 'center' })
+    doc.text(`No. ${pago.receipt_number}`, pageWidth / 2, 33, { align: 'center' })
+    
+    // Información del estudiante
+    doc.setTextColor(0, 0, 0)
+    doc.setFontSize(11)
+    doc.setFont('helvetica', 'bold')
+    doc.text('DATOS DEL ESTUDIANTE', 14, 50)
+    
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(10)
+    doc.text(`Nombre: ${pago.student_name}`, 14, 58)
+    doc.text(`Grado: ${pago.student_grade || 'N/A'}`, 14, 64)
+    doc.text(`Carnet: ${pago.student_carnet || 'N/A'}`, 14, 70)
+    
+    // Información de la orden
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(11)
+    doc.text('DETALLE DE LA ORDEN', 14, 82)
+    
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(10)
+    doc.text(`Descripción: ${ordenSeleccionada?.descripcion || ''}`, 14, 90)
+    doc.text(`Monto Total: Q ${ordenSeleccionada?.total_amount?.toFixed(2) || '0.00'}`, 14, 96)
+    
+    // Información del pago
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(11)
+    doc.text('DETALLE DEL PAGO', 14, 108)
+    
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(10)
+    doc.text(`Monto Pagado: Q ${pago.amount.toFixed(2)}`, 14, 116)
+    doc.text(`Método de Pago: ${pago.payment_method_name}`, 14, 122)
+    doc.text(`Fecha: ${new Date(pago.payment_date).toLocaleDateString('es-GT', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })}`, 14, 128)
+    
+    // Estado de la orden después del pago
+    const nuevoSaldoPendiente = ordenSeleccionada.pending_amount - pago.amount
+    const nuevoSaldoPagado = ordenSeleccionada.paid_amount + pago.amount
+    
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(11)
+    doc.text('ESTADO DE LA CUENTA', 14, 140)
+    
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(10)
+    doc.text(`Pagado: Q ${nuevoSaldoPagado.toFixed(2)}`, 14, 148)
+    doc.text(`Pendiente: Q ${nuevoSaldoPendiente.toFixed(2)}`, 14, 154)
+    
+    if (nuevoSaldoPendiente === 0) {
+      doc.setTextColor(34, 197, 94)
+      doc.setFont('helvetica', 'bold')
+      doc.text('ORDEN CANCELADA', 14, 162)
+      doc.setTextColor(0, 0, 0)
+    }
+    
+    // Footer
+    doc.setFontSize(8)
+    doc.setFont('helvetica', 'italic')
+    doc.setTextColor(100, 100, 100)
+    doc.text('Este documento es un comprobante de pago válido', pageWidth / 2, 280, { align: 'center' })
+    doc.text('Conserve este recibo para cualquier aclaración', pageWidth / 2, 285, { align: 'center' })
+    
+    // Guardar PDF
+    doc.save(`Recibo_${pago.receipt_number}_${new Date().getTime()}.pdf`)
   }
 
   return (
@@ -410,6 +636,288 @@ function Uniformes() {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Sección de Órdenes de Pago */}
+      {estudianteSeleccionado && !loading && (
+        <div className="bg-white rounded-xl shadow-lg p-6 mt-6">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+              <i className="bi bi-receipt text-purple-600"></i>
+              Órdenes de Pago
+            </h3>
+            <button
+              onClick={abrirModalOrden}
+              className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg flex items-center gap-2"
+            >
+              <i className="bi bi-plus-circle"></i>
+              Nueva Orden
+            </button>
+          </div>
+
+          {/* Lista de órdenes */}
+          {ordenes.length === 0 ? (
+            <div className="text-center py-12">
+              <i className="bi bi-inbox text-6xl text-gray-300 mb-4"></i>
+              <p className="text-gray-500">No hay órdenes registradas</p>
+            </div>
+          ) : (
+            <div className="grid gap-4">
+              {ordenes.map((orden) => (
+                <div
+                  key={orden.id}
+                  className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
+                >
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-gray-800 text-lg mb-1">
+                        {orden.descripcion}
+                      </h4>
+                      <p className="text-sm text-gray-500">
+                        Creada: {new Date(orden.created_at).toLocaleDateString('es-GT')}
+                      </p>
+                    </div>
+                    <span
+                      className={`px-3 py-1 rounded-full text-sm font-medium ${
+                        orden.estado === 'CERRADO'
+                          ? 'bg-green-100 text-green-700'
+                          : 'bg-yellow-100 text-yellow-700'
+                      }`}
+                    >
+                      <i className={`bi ${orden.estado === 'CERRADO' ? 'bi-check-circle' : 'bi-clock'} mr-1`}></i>
+                      {orden.estado}
+                    </span>
+                  </div>
+
+                  {/* Montos */}
+                  <div className="grid grid-cols-3 gap-4 mb-4 bg-gray-50 rounded-lg p-3">
+                    <div>
+                      <p className="text-xs text-gray-500 mb-1">Total</p>
+                      <p className="text-lg font-bold text-gray-800">
+                        Q {orden.total_amount.toFixed(2)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500 mb-1">Pagado</p>
+                      <p className="text-lg font-bold text-green-600">
+                        Q {orden.paid_amount.toFixed(2)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500 mb-1">Pendiente</p>
+                      <p className="text-lg font-bold text-red-600">
+                        Q {orden.pending_amount.toFixed(2)}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Historial de pagos */}
+                  {orden.uniform_order_payments && orden.uniform_order_payments.length > 0 && (
+                    <div className="mb-3">
+                      <p className="text-sm font-semibold text-gray-700 mb-2">
+                        Historial de Pagos ({orden.uniform_order_payments.length})
+                      </p>
+                      <div className="space-y-2">
+                        {orden.uniform_order_payments.map((pago) => (
+                          <div
+                            key={pago.id}
+                            className="flex items-center justify-between bg-green-50 rounded-lg p-2 text-sm"
+                          >
+                            <span className="text-gray-700">
+                              <i className="bi bi-cash text-green-600 mr-2"></i>
+                              Q {pago.amount.toFixed(2)}
+                            </span>
+                            <span className="text-gray-600">
+                              {pago.payment_methods?.nombre || 'N/A'}
+                            </span>
+                            <span className="text-gray-500">
+                              {new Date(pago.payment_date).toLocaleDateString('es-GT')}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Botón para pagar */}
+                  {orden.estado === 'ABIERTO' && (
+                    <button
+                      onClick={() => abrirModalPago(orden)}
+                      className="w-full px-4 py-2 bg-lime-600 hover:bg-lime-700 text-white rounded-lg flex items-center justify-center gap-2"
+                    >
+                      <i className="bi bi-wallet2"></i>
+                      Registrar Pago
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Modal: Crear Orden */}
+      {modalOrden && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                <i className="bi bi-receipt-cutoff text-purple-600"></i>
+                Nueva Orden
+              </h3>
+              <button
+                onClick={() => setModalOrden(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <i className="bi bi-x-lg text-2xl"></i>
+              </button>
+            </div>
+
+            <form onSubmit={handleCrearOrden} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Descripción
+                </label>
+                <input
+                  type="text"
+                  value={formOrden.descripcion}
+                  onChange={(e) => setFormOrden({ ...formOrden, descripcion: e.target.value })}
+                  placeholder="Ej: Prendas extras febrero"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Monto Total (Q)
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  value={formOrden.total_amount}
+                  onChange={(e) => setFormOrden({ ...formOrden, total_amount: e.target.value })}
+                  placeholder="0.00"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                  required
+                />
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setModalOrden(false)}
+                  className="flex-1 px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-lg"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg flex items-center justify-center gap-2"
+                >
+                  <i className="bi bi-check-circle"></i>
+                  Crear Orden
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Registrar Pago */}
+      {modalPago && ordenSeleccionada && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                <i className="bi bi-wallet2 text-lime-600"></i>
+                Registrar Pago
+              </h3>
+              <button
+                onClick={() => setModalPago(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <i className="bi bi-x-lg text-2xl"></i>
+              </button>
+            </div>
+
+            <div className="bg-gray-50 rounded-lg p-4 mb-4">
+              <p className="text-sm text-gray-600 mb-1">Orden</p>
+              <p className="font-semibold text-gray-800 mb-3">{ordenSeleccionada.descripcion}</p>
+              
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div>
+                  <p className="text-gray-500">Total</p>
+                  <p className="font-bold">Q {ordenSeleccionada.total_amount.toFixed(2)}</p>
+                </div>
+                <div>
+                  <p className="text-gray-500">Pagado</p>
+                  <p className="font-bold text-green-600">Q {ordenSeleccionada.paid_amount.toFixed(2)}</p>
+                </div>
+                <div className="col-span-2">
+                  <p className="text-gray-500">Saldo Pendiente</p>
+                  <p className="font-bold text-red-600 text-lg">Q {ordenSeleccionada.pending_amount.toFixed(2)}</p>
+                </div>
+              </div>
+            </div>
+
+            <form onSubmit={handleRegistrarPago} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Monto a Pagar (Q)
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  max={ordenSeleccionada.pending_amount}
+                  value={formPago.amount}
+                  onChange={(e) => setFormPago({ ...formPago, amount: e.target.value })}
+                  placeholder="0.00"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-lime-500"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Método de Pago
+                </label>
+                <select
+                  value={formPago.payment_method_id}
+                  onChange={(e) => setFormPago({ ...formPago, payment_method_id: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-lime-500"
+                  required
+                >
+                  <option value="">Selecciona un método</option>
+                  {metodosPago.map((metodo) => (
+                    <option key={metodo.id} value={metodo.id}>
+                      {metodo.nombre}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setModalPago(false)}
+                  className="flex-1 px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-lg"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 px-4 py-2 bg-lime-600 hover:bg-lime-700 text-white rounded-lg flex items-center justify-center gap-2"
+                >
+                  <i className="bi bi-check-circle"></i>
+                  Registrar
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 
