@@ -105,11 +105,11 @@ function PagosCursos() {
     setFormPago({ mes_id: '', monto: MONTO_MENSUALIDAD_CURSO })
   }
 
-  // Calcular mora (solo de febrero a octubre, si la fecha actual es posterior al día 5 del mes que se está pagando)
+  // Calcular mora (solo de febrero a octubre, a partir del día 6 del mes que se está pagando)
   const calcularMora = (mesId = null) => {
     const fechaActual = new Date()
     const mesActual = fechaActual.getMonth() + 1 // getMonth() devuelve 0-11
-    const anioActual = fechaActual.getFullYear()
+    const diaActual = fechaActual.getDate()
     
     // El mes_id corresponde al número del mes (1=Enero, 2=Febrero, etc.)
     const mesPagar = mesId ? parseInt(mesId) : 0
@@ -119,11 +119,9 @@ function PagosCursos() {
       return 0.00
     }
     
-    // Crear fecha de vencimiento: día 5 del mes que se está pagando
-    const fechaVencimiento = new Date(anioActual, mesPagar - 1, 5)
-    
-    // Solo aplicar mora si la fecha actual es posterior a la fecha de vencimiento
-    if (fechaActual > fechaVencimiento) {
+    // Aplicar mora solo si estamos en el mes que se está pagando y después del día 5
+    // O si ya pasó el mes que se está pagando
+    if (mesActual > mesPagar || (mesActual === mesPagar && diaActual > 5)) {
       return 30.00
     }
     
