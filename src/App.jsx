@@ -22,6 +22,10 @@ function ProtectedRoute({ children, user }) {
 function App() {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [isCollapsed, setIsCollapsed] = useState(() => {
+    const saved = localStorage.getItem('sidebarCollapsed')
+    return saved === 'true'
+  })
 
   useEffect(() => {
     // Verificar si hay usuario guardado en localStorage
@@ -30,6 +34,24 @@ function App() {
       setUser(JSON.parse(savedUser))
     }
     setLoading(false)
+
+    // Escuchar cambios en el sidebar collapse
+    const handleStorageChange = () => {
+      const saved = localStorage.getItem('sidebarCollapsed')
+      setIsCollapsed(saved === 'true')
+    }
+    
+    window.addEventListener('storage', handleStorageChange)
+    // Revisar cada 100ms para cambios locales
+    const interval = setInterval(() => {
+      const saved = localStorage.getItem('sidebarCollapsed')
+      setIsCollapsed(saved === 'true')
+    }, 100)
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange)
+      clearInterval(interval)
+    }
   }, [])
 
   const handleLogin = (userData) => {
@@ -56,7 +78,7 @@ function App() {
     <Router>
       <div className="min-h-screen bg-gray-100">
         {user && <Navbar user={user} onLogout={handleLogout} />}
-        <main className={user ? "ml-64 px-8 py-8" : ""}>
+        <main className={user ? (isCollapsed ? "ml-16 px-8 py-8 transition-all duration-300" : "ml-64 px-8 py-8 transition-all duration-300") : ""}>
           <Routes>
             <Route 
               path="/login" 
