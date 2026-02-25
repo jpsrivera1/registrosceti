@@ -58,9 +58,14 @@ export default function ListaDocentes() {
   };
 
   const getJornadaIcon = (jornada) => {
-    return jornada === 'Matutina' 
-      ? <i className="bi bi-sun-fill text-yellow-500"></i>
-      : <i className="bi bi-moon-fill text-indigo-500"></i>;
+    if (jornada === 'Matutina') {
+      return <i className="bi bi-sun-fill text-yellow-500"></i>;
+    } else if (jornada === 'Vespertina') {
+      return <i className="bi bi-moon-fill text-indigo-500"></i>;
+    } else if (jornada === 'Fin de semana') {
+      return <i className="bi bi-calendar-week text-green-500"></i>;
+    }
+    return null;
   };
 
   const getEstadoBadge = (estado) => {
@@ -127,6 +132,7 @@ export default function ListaDocentes() {
                 <option value="">Todas</option>
                 <option value="Matutina">Matutina</option>
                 <option value="Vespertina">Vespertina</option>
+                <option value="Fin de semana">Fin de semana</option>
               </select>
             </div>
 

@@ -106,6 +106,7 @@ export default function RegistrarDocente() {
               >
                 <option value="Matutina">Matutina</option>
                 <option value="Vespertina">Vespertina</option>
+                <option value="Fin de semana">Fin de semana</option>
               </select>
               <p className="text-sm text-gray-500 mt-1">
                 Selecciona la jornada en la que trabaja el docente
