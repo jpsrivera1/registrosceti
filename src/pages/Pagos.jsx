@@ -1018,7 +1018,7 @@ function Pagos() {
     return mesesCursoExtra.filter(mes => !mesCursoPagado(mes.id))
   }
 
-  // Calcular mora para curso (solo de marzo a octubre, a partir del día 6 del mes que se está pagando)
+  // Calcular mora para curso (solo de abril a octubre, a partir del día 6 del mes que se está pagando)
   const calcularMoraCurso = (mesId = null) => {
     const fechaActual = new Date()
     const mesActual = fechaActual.getMonth() + 1 // getMonth() devuelve 0-11
@@ -1027,8 +1027,8 @@ function Pagos() {
     // El mes_id corresponde al número del mes (1=Enero, 2=Febrero, etc.)
     const mesPagar = mesId ? parseInt(mesId) : 0
     
-    // Solo aplicar mora de marzo (3) a octubre (10)
-    if (mesPagar < 3 || mesPagar > 10) {
+    // Solo aplicar mora de abril (4) a octubre (10)
+    if (mesPagar < 4 || mesPagar > 10) {
       return 0.00
     }
     
