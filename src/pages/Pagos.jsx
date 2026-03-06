@@ -1911,7 +1911,7 @@ function Pagos() {
               }`}
             >
               <div className="flex items-center gap-3 mb-3">
-                <i className={`bi bi-suit-heart-fill text-3xl ${pagoTraje && parseFloat(pagoTraje.monto_pendiente) === 0 ? 'text-green-600' : ''}`}></i>
+                <i className={`bi bi-award text-3xl ${pagoTraje && parseFloat(pagoTraje.monto_pendiente) === 0 ? 'text-green-600' : ''}`}></i>
                 <div>
                   <h3 className="font-bold">Pago Traje Graduación</h3>
                   {pagoTraje && parseFloat(pagoTraje.monto_pendiente) === 0 && (
@@ -2895,7 +2895,7 @@ function Pagos() {
             <div className="p-4 rounded-t-2xl bg-purple-100 text-purple-700 border-b border-purple-300">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <i className="bi bi-suit-heart-fill text-2xl"></i>
+                  <i className="bi bi-award text-2xl"></i>
                   <h2 className="text-lg font-bold">Pago Traje Graduación</h2>
                 </div>
                 <button onClick={cerrarModalTraje} className="hover:opacity-70">
