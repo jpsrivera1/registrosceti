@@ -32,6 +32,10 @@ export const obtenerMetodosPago = () => api.get('/pagos/metodos-pago')
 export const obtenerPagoGraduacion = (studentId) => api.get(`/pagos/graduacion/${studentId}`)
 export const guardarPagoGraduacion = (studentId, data) => api.post(`/pagos/graduacion/${studentId}`, data)
 
+// Trajes de Graduandos
+export const obtenerPagoTraje = (studentId) => api.get(`/pagos/traje/${studentId}`)
+export const guardarPagoTraje = (studentId, data) => api.post(`/pagos/traje/${studentId}`, data)
+
 // Colegiaturas
 export const obtenerColegiaturas = (studentId) => api.get(`/pagos/colegiaturas/${studentId}`)
 export const verificarMesPagado = (studentId, mes) => api.get(`/pagos/colegiaturas/${studentId}/mes/${mes}`)

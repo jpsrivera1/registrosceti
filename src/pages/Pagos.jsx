@@ -13,6 +13,8 @@ import {
   obtenerMetodosPago,
   obtenerPagoGraduacion,
   guardarPagoGraduacion,
+  obtenerPagoTraje,
+  guardarPagoTraje,
   crearOrdenUniforme,
   obtenerOrdenesEstudiante,
   registrarPagoOrden
@@ -96,6 +98,14 @@ function Pagos() {
   const [formGraduacion, setFormGraduacion] = useState({ total_amount: '', paid_amount: '', payment_method_id: '' })
   const [loadingGraduacion, setLoadingGraduacion] = useState(false)
   const [modoAbonoGraduacion, setModoAbonoGraduacion] = useState(false)
+
+  // Estados para traje de graduandos
+  const [modalTraje, setModalTraje] = useState(false)
+  const [pagoTraje, setPagoTraje] = useState(null)
+  const [aplicaTraje, setAplicaTraje] = useState(false)
+  const [formTraje, setFormTraje] = useState({ monto_total: '', monto_adelanto: '', payment_method_id: '' })
+  const [loadingTraje, setLoadingTraje] = useState(false)
+  const [modoAbonoTraje, setModoAbonoTraje] = useState(false)
 
   // Estados para órdenes de uniforme
   const [mostrarOrdenes, setMostrarOrdenes] = useState(false)
@@ -186,9 +196,23 @@ function Pagos() {
           setAplicaGraduacion(true) // Mostrar tarjeta aunque falle la consulta
           setPagoGraduacion(null)
         }
+
+        // Si aplica para graduación, también aplica para traje
+        try {
+          const resTraje = await obtenerPagoTraje(estudiante.id)
+          console.log('👔 Respuesta pago traje:', resTraje.data)
+          setAplicaTraje(resTraje.data.aplica)
+          setPagoTraje(resTraje.data.pago)
+        } catch (err) {
+          console.error('Error al obtener pago traje:', err)
+          setAplicaTraje(true)
+          setPagoTraje(null)
+        }
       } else {
         setAplicaGraduacion(false)
         setPagoGraduacion(null)
+        setAplicaTraje(false)
+        setPagoTraje(null)
       }
 
       // Si tiene curso extra, cargar pagos del curso
@@ -742,6 +766,245 @@ function Pagos() {
       toast.error('Error al guardar el pago de graduación')
     } finally {
       setLoadingGraduacion(false)
+    }
+  }
+
+  // ==================== TRAJE DE GRADUANDOS ====================
+  
+  // Abrir modal de traje
+  const abrirModalTraje = () => {
+    if (pagoTraje && parseFloat(pagoTraje.monto_pendiente) > 0) {
+      setModoAbonoTraje(true)
+      setFormTraje({
+        monto_total: pagoTraje.monto_total,
+        monto_adelanto: pagoTraje.monto_pendiente,
+        payment_method_id: ''
+      })
+    } else if (pagoTraje && parseFloat(pagoTraje.monto_pendiente) === 0) {
+      setModoAbonoTraje(false)
+      setFormTraje({
+        monto_total: pagoTraje.monto_total,
+        monto_adelanto: pagoTraje.monto_adelanto,
+        payment_method_id: ''
+      })
+    } else {
+      setModoAbonoTraje(false)
+      setFormTraje({ monto_total: '', monto_adelanto: '', payment_method_id: '' })
+    }
+    setModalTraje(true)
+  }
+
+  // Cerrar modal de traje
+  const cerrarModalTraje = () => {
+    setModalTraje(false)
+    setFormTraje({ monto_total: '', monto_adelanto: '', payment_method_id: '' })
+    setModoAbonoTraje(false)
+  }
+
+  // Calcular pendiente de traje
+  const calcularPendienteTraje = () => {
+    if (modoAbonoTraje) {
+      const pendienteActual = pagoTraje ? parseFloat(pagoTraje.monto_pendiente) : 0
+      const abono = parseFloat(formTraje.monto_adelanto) || 0
+      return Math.max(0, pendienteActual - abono)
+    } else {
+      const total = parseFloat(formTraje.monto_total) || 0
+      const abono = parseFloat(formTraje.monto_adelanto) || 0
+      return Math.max(0, total - abono)
+    }
+  }
+
+  // Generar recibo PDF para traje
+  const generarReciboTrajePDF = (datosResponse, estudiante) => {
+    const doc = new jsPDF('p', 'mm', 'letter')
+    const ancho = doc.internal.pageSize.getWidth()
+    const fechaActual = new Date().toLocaleDateString('es-GT', { 
+      day: '2-digit', month: 'long', year: 'numeric' 
+    })
+
+    const dibujarReciboTraje = (yOffset, titulo) => {
+      // Marco del recibo
+      doc.setDrawColor(0, 0, 0)
+      doc.setLineWidth(0.5)
+      doc.rect(10, yOffset, ancho - 20, 120)
+
+      // Encabezado con borde
+      doc.setDrawColor(0, 0, 0)
+      doc.setLineWidth(1)
+      doc.rect(10, yOffset, ancho - 20, 25)
+
+      // Título del centro educativo
+      doc.setTextColor(0, 0, 0)
+      doc.setFontSize(16)
+      doc.setFont('helvetica', 'bold')
+      doc.text('CENTRO EDUCATIVO TECNOLÓGICO INNOVA', ancho / 2, yOffset + 10, { align: 'center' })
+      doc.setFontSize(10)
+      doc.setFont('helvetica', 'normal')
+      doc.text('San Martín Jilotepeque, Chimaltenango', ancho / 2, yOffset + 17, { align: 'center' })
+      doc.text(titulo, ancho / 2, yOffset + 23, { align: 'center' })
+
+      // Contenido
+      doc.setTextColor(0, 0, 0)
+      let y = yOffset + 35
+
+      // Número de recibo y fecha
+      doc.setDrawColor(0, 0, 0)
+      doc.rect(15, y - 5, ancho - 30, 12)
+      doc.setFontSize(11)
+      doc.setFont('helvetica', 'bold')
+      doc.text(`RECIBO No: ${datosResponse.numeroRecibo}`, 20, y + 2)
+      doc.text(`Fecha: ${fechaActual}`, ancho - 80, y + 2)
+
+      y += 18
+
+      // Datos del estudiante
+      doc.setFontSize(10)
+      doc.setFont('helvetica', 'bold')
+      doc.text('DATOS DEL ESTUDIANTE:', 20, y)
+      y += 8
+
+      doc.setFont('helvetica', 'normal')
+      doc.text(`Nombre: ${estudiante.nombre} ${estudiante.apellidos}`, 20, y)
+      y += 6
+      doc.text(`Grado: ${estudiante.grado || 'N/A'}`, 20, y)
+      doc.text(`Jornada: ${estudiante.jornada || 'N/A'}`, 100, y)
+      y += 6
+      doc.text(`Modalidad: ${estudiante.modalidad || 'N/A'}`, 20, y)
+      doc.setFont('helvetica', 'bold')
+      doc.text(`Forma de Pago: ${datosResponse.metodo_pago || 'N/A'}`, 100, y)
+      doc.setFont('helvetica', 'normal')
+
+      y += 12
+
+      // Detalles del pago
+      doc.setFont('helvetica', 'bold')
+      doc.text('DETALLE DEL PAGO:', 20, y)
+      y += 8
+
+      // Tabla de pago
+      doc.setDrawColor(0, 0, 0)
+      doc.line(20, y, ancho - 20, y)
+      y += 6
+
+      doc.setFont('helvetica', 'normal')
+      doc.text('Concepto', 25, y)
+      doc.text('Monto', ancho - 50, y, { align: 'right' })
+      y += 6
+      doc.line(20, y - 2, ancho - 20, y - 2)
+
+      doc.text('Traje de Graduación', 25, y)
+      doc.text(`Q${parseFloat(datosResponse.pago.monto_total).toFixed(2)}`, ancho - 50, y, { align: 'right' })
+      y += 8
+
+      doc.setFont('helvetica', 'bold')
+      doc.text(`Abono ${datosResponse.esAbono ? '(Adicional)' : '(Inicial)'}`, 25, y)
+      doc.text(`Q${parseFloat(datosResponse.montoAbonado).toFixed(2)}`, ancho - 50, y, { align: 'right' })
+      y += 8
+
+      doc.line(20, y - 2, ancho - 20, y - 2)
+      doc.line(20, y, ancho - 20, y)
+
+      y += 8
+
+      // Resumen
+      const totalAdelanto = parseFloat(datosResponse.pago.monto_adelanto)
+      const pendiente = parseFloat(datosResponse.pago.monto_pendiente)
+
+      doc.text('Total Adelanto:', 25, y)
+      doc.setTextColor(34, 197, 94)
+      doc.text(`Q${totalAdelanto.toFixed(2)}`, ancho - 50, y, { align: 'right' })
+
+      y += 6
+      doc.setTextColor(0, 0, 0)
+      doc.text('Pendiente:', 25, y)
+      
+      if (pendiente === 0) {
+        doc.setTextColor(34, 197, 94)
+        doc.text('Q0.00 - ¡CANCELADO!', ancho - 50, y, { align: 'right' })
+      } else {
+        doc.setTextColor(220, 38, 38)
+        doc.text(`Q${pendiente.toFixed(2)}`, ancho - 50, y, { align: 'right' })
+      }
+
+      doc.setTextColor(0, 0, 0)
+      doc.setFont('helvetica', 'normal')
+    }
+
+    // Dibujar dos recibos
+    dibujarReciboTraje(10, '- CONSTANCIA PAGO TRAJE GRADUACIÓN -')
+    doc.setLineDash([2, 2])
+    doc.line(10, 135, ancho - 10, 135)
+    doc.setLineDash([])
+    dibujarReciboTraje(145, '- COPIA CLIENTE -')
+
+    // Guardar PDF
+    doc.save(`Recibo_Traje_${datosResponse.numeroRecibo}.pdf`)
+    toast.success('Recibo generado exitosamente')
+  }
+
+  // Guardar pago de traje
+  const handleGuardarTraje = async (e) => {
+    e.preventDefault()
+
+    if (!formTraje.payment_method_id) {
+      toast.error('Debe seleccionar una forma de pago')
+      return
+    }
+
+    const montoTotal = parseFloat(formTraje.monto_total) || 0
+    const montoAbono = parseFloat(formTraje.monto_adelanto) || 0
+    const pendienteActual = pagoTraje ? parseFloat(pagoTraje.monto_pendiente) : 0
+
+    // Validaciones
+    if (!modoAbonoTraje) {
+      if (!formTraje.monto_total || montoTotal <= 0) {
+        toast.error('El monto total debe ser mayor a 0')
+        return
+      }
+      if (montoAbono > montoTotal) {
+        toast.error('El adelanto no puede ser mayor al monto total')
+        return
+      }
+    } else {
+      if (montoAbono <= 0) {
+        toast.error('El monto a abonar debe ser mayor a 0')
+        return
+      }
+      if (montoAbono > pendienteActual) {
+        toast.error('El abono no puede ser mayor al pendiente')
+        return
+      }
+    }
+
+    setLoadingTraje(true)
+    try {
+      const response = await guardarPagoTraje(
+        estudianteSeleccionado.id,
+        {
+          monto_total: formTraje.monto_total,
+          monto_adelanto: formTraje.monto_adelanto,
+          payment_method_id: parseInt(formTraje.payment_method_id)
+        }
+      )
+      
+      // Actualizar estado de pago
+      setPagoTraje(response.data.pago)
+      
+      // Generar recibo PDF
+      generarReciboTrajePDF(response.data, estudianteSeleccionado)
+      
+      if (response.data.estaCancelado) {
+        toast.success('¡Pago de traje completado!')
+      } else {
+        toast.success('Abono de traje registrado correctamente')
+      }
+      
+      cerrarModalTraje()
+    } catch (error) {
+      console.error(error)
+      toast.error('Error al guardar el pago de traje')
+    } finally {
+      setLoadingTraje(false)
     }
   }
 
@@ -1625,6 +1888,48 @@ function Pagos() {
                     <p className="text-red-600 font-bold flex items-center gap-1">
                       <i className="bi bi-exclamation-triangle"></i>
                       Pendiente: Q{parseFloat(pagoGraduacion.pending_amount).toFixed(2)}
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <p className="text-sm opacity-75">
+                  <i className="bi bi-plus-circle me-1"></i>
+                  Sin registro de pago
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* TARJETA DE PAGO TRAJE (solo si aplica) */}
+          {aplicaTraje && (
+            <div
+              onClick={abrirModalTraje}
+              className={`p-5 rounded-xl border-2 cursor-pointer transition-all transform hover:scale-105 ${
+                pagoTraje && parseFloat(pagoTraje.monto_pendiente) === 0
+                  ? 'bg-green-50 border-green-400'
+                  : 'bg-purple-100 text-purple-700 hover:bg-purple-200 border-purple-400'
+              }`}
+            >
+              <div className="flex items-center gap-3 mb-3">
+                <i className={`bi bi-suit-heart-fill text-3xl ${pagoTraje && parseFloat(pagoTraje.monto_pendiente) === 0 ? 'text-green-600' : ''}`}></i>
+                <div>
+                  <h3 className="font-bold">Pago Traje Graduación</h3>
+                  {pagoTraje && parseFloat(pagoTraje.monto_pendiente) === 0 && (
+                    <span className="text-xs bg-green-500 text-white px-2 py-0.5 rounded-full">
+                      ✓ CANCELADO
+                    </span>
+                  )}
+                </div>
+              </div>
+              
+              {pagoTraje ? (
+                <div className="text-sm space-y-1">
+                  <p>Total: <span className="font-bold">Q{parseFloat(pagoTraje.monto_total).toFixed(2)}</span></p>
+                  <p>Adelanto: <span className="font-bold text-green-700">Q{parseFloat(pagoTraje.monto_adelanto).toFixed(2)}</span></p>
+                  {parseFloat(pagoTraje.monto_pendiente) > 0 && (
+                    <p className="text-red-600 font-bold flex items-center gap-1">
+                      <i className="bi bi-exclamation-triangle"></i>
+                      Pendiente: Q{parseFloat(pagoTraje.monto_pendiente).toFixed(2)}
                     </p>
                   )}
                 </div>
@@ -2573,6 +2878,220 @@ function Pagos() {
                 <button
                   type="button"
                   onClick={cerrarModalGraduacion}
+                  className="w-full px-4 py-3 bg-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-300 transition-colors"
+                >
+                  Cerrar
+                </button>
+              )}
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Pago de Traje */}
+      {modalTraje && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+            <div className="p-4 rounded-t-2xl bg-purple-100 text-purple-700 border-b border-purple-300">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <i className="bi bi-suit-heart-fill text-2xl"></i>
+                  <h2 className="text-lg font-bold">Pago Traje Graduación</h2>
+                </div>
+                <button onClick={cerrarModalTraje} className="hover:opacity-70">
+                  <i className="bi bi-x-lg text-xl"></i>
+                </button>
+              </div>
+            </div>
+
+            <form onSubmit={handleGuardarTraje} className="p-6 space-y-4">
+              {/* Mostrar estado actual si hay pago existente */}
+              {modoAbonoTraje && pagoTraje && (
+                <div className="bg-yellow-50 border border-yellow-300 rounded-lg p-4 mb-4">
+                  <h4 className="font-bold text-yellow-800 mb-2">
+                    <i className="bi bi-info-circle me-2"></i>
+                    Estado Actual del Pago
+                  </h4>
+                  <div className="grid grid-cols-3 gap-2 text-sm">
+                    <div>
+                      <p className="text-gray-600">Total</p>
+                      <p className="font-bold">Q{parseFloat(pagoTraje.monto_total).toFixed(2)}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-600">Adelanto</p>
+                      <p className="font-bold text-green-600">Q{parseFloat(pagoTraje.monto_adelanto).toFixed(2)}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-600">Pendiente</p>
+                      <p className="font-bold text-red-600">Q{parseFloat(pagoTraje.monto_pendiente).toFixed(2)}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Si ya está cancelado */}
+              {pagoTraje && parseFloat(pagoTraje.monto_pendiente) === 0 && (
+                <div className="bg-green-50 border border-green-300 rounded-lg p-4 text-center">
+                  <i className="bi bi-check-circle-fill text-4xl text-green-500 mb-2"></i>
+                  <h4 className="font-bold text-green-800">¡Pago de traje cancelado!</h4>
+                  <p className="text-green-600 text-sm mt-1">
+                    Total pagado: Q{parseFloat(pagoTraje.monto_total).toFixed(2)}
+                  </p>
+                </div>
+              )}
+
+              {/* Formulario solo si no está cancelado */}
+              {(!pagoTraje || parseFloat(pagoTraje.monto_pendiente) > 0) && (
+                <>
+                  {!modoAbonoTraje ? (
+                    // Nuevo registro
+                    <>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          <i className="bi bi-currency-dollar me-1"></i>
+                          Monto Total del Traje
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={formTraje.monto_total}
+                          onChange={(e) => setFormTraje(prev => ({ ...prev, monto_total: e.target.value }))}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                          placeholder="Ej: 800.00"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          <i className="bi bi-wallet2 me-1"></i>
+                          Adelanto Inicial
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={formTraje.monto_adelanto}
+                          onChange={(e) => setFormTraje(prev => ({ ...prev, monto_adelanto: e.target.value }))}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                          placeholder="0.00"
+                        />
+                      </div>
+                    </>
+                  ) : (
+                    // Modo abono - pagar pendiente
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <i className="bi bi-cash-coin me-1"></i>
+                        Monto a Abonar
+                      </label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        max={pagoTraje?.monto_pendiente}
+                        value={formTraje.monto_adelanto}
+                        onChange={(e) => setFormTraje(prev => ({ ...prev, monto_adelanto: e.target.value }))}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                        placeholder={`Máximo: Q${pagoTraje?.monto_pendiente}`}
+                      />
+                      <div className="flex gap-2 mt-2">
+                        <button
+                          type="button"
+                          onClick={() => setFormTraje(prev => ({ ...prev, monto_adelanto: pagoTraje?.monto_pendiente }))}
+                          className="px-3 py-1 bg-purple-100 text-purple-700 rounded text-sm hover:bg-purple-200"
+                        >
+                          Pagar Todo
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setFormTraje(prev => ({ ...prev, monto_adelanto: (parseFloat(pagoTraje?.monto_pendiente || 0) / 2).toFixed(2) }))}
+                          className="px-3 py-1 bg-purple-100 text-purple-700 rounded text-sm hover:bg-purple-200"
+                        >
+                          50%
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Selector de forma de pago */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <i className="bi bi-credit-card me-1"></i>
+                      Forma de Pago
+                    </label>
+                    <select
+                      value={formTraje.payment_method_id}
+                      onChange={(e) => setFormTraje(prev => ({ ...prev, payment_method_id: e.target.value }))}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                    >
+                      <option value="">Seleccione forma de pago</option>
+                      {metodosPago.map(metodo => (
+                        <option key={metodo.id} value={metodo.id}>{metodo.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Resumen del pago */}
+                  <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                    <h4 className="font-bold text-purple-800 mb-3">
+                      <i className="bi bi-calculator me-2"></i>
+                      Resumen
+                    </h4>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="text-center">
+                        <span className="text-sm text-gray-600 block mb-1">
+                          {modoAbonoTraje ? 'Nuevo Adelanto' : 'Adelanto Inicial'}
+                        </span>
+                        <span className="text-xl font-bold text-green-600">
+                          Q{(parseFloat(formTraje.monto_adelanto) || 0).toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="text-center">
+                        <span className="text-sm text-gray-600 block mb-1">
+                          Pendiente
+                        </span>
+                        <span className={`text-2xl font-bold ${calcularPendienteTraje() > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                          {calcularPendienteTraje() === 0 ? '¡CANCELADO!' : `Q${calcularPendienteTraje().toFixed(2)}`}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3 pt-4">
+                    <button
+                      type="button"
+                      onClick={cerrarModalTraje}
+                      className="flex-1 px-4 py-3 bg-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-300 transition-colors"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={loadingTraje || !formTraje.payment_method_id}
+                      className="flex-1 px-4 py-3 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                      {loadingTraje ? (
+                        <>
+                          <i className="bi bi-arrow-repeat animate-spin"></i>
+                          Procesando...
+                        </>
+                      ) : (
+                        <>
+                          <i className="bi bi-receipt me-1"></i>
+                          {modoAbonoTraje ? 'Registrar Abono' : 'Guardar y Generar Recibo'}
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {/* Botón cerrar si ya está cancelado */}
+              {pagoTraje && parseFloat(pagoTraje.monto_pendiente) === 0 && (
+                <button
+                  type="button"
+                  onClick={cerrarModalTraje}
                   className="w-full px-4 py-3 bg-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-300 transition-colors"
                 >
                   Cerrar
