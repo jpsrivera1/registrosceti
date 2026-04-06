@@ -105,34 +105,10 @@ function PagosCursos() {
     setFormPago({ mes_id: '', monto: MONTO_MENSUALIDAD_CURSO })
   }
 
-  // Calcular mora (solo de marzo a octubre, a partir del día 6 del mes que se está pagando)
-  const calcularMora = (mesId = null) => {
-    const fechaActual = new Date()
-    const mesActual = fechaActual.getMonth() + 1 // getMonth() devuelve 0-11
-    const diaActual = fechaActual.getDate()
-    
-    // El mes_id corresponde al número del mes (1=Enero, 2=Febrero, etc.)
-    const mesPagar = mesId ? parseInt(mesId) : 0
-    
-    // Solo aplicar mora de marzo (3) a octubre (10)
-    if (mesPagar < 3 || mesPagar > 10) {
-      return 0.00
-    }
-    
-    // Aplicar mora solo si estamos en el mes que se está pagando y después del día 5
-    // O si ya pasó el mes que se está pagando
-    if (mesActual > mesPagar || (mesActual === mesPagar && diaActual > 5)) {
-      return 30.00
-    }
-    
-    return 0.00
-  }
-
-  // Calcular total con mora
+  // Calcular total sin mora
   const calcularTotal = () => {
     const monto = parseFloat(formPago.monto) || 0
-    const mora = calcularMora(formPago.mes_id)
-    return (monto + mora).toFixed(2)
+    return monto.toFixed(2)
   }
 
   // Registrar pago
@@ -152,13 +128,11 @@ function PagosCursos() {
     setLoading(true)
     try {
       const mesSeleccionado = meses.find(m => m.id === parseInt(formPago.mes_id))
-      const mora = calcularMora(formPago.mes_id)
       
       const { data } = await registrarPagoCurso({
         estudiante_id: estudianteSeleccionado.id,
         mes_id: parseInt(formPago.mes_id),
-        monto: formPago.monto,
-        mora: mora
+        monto: formPago.monto
       })
 
       // Actualizar historial
@@ -252,44 +226,22 @@ function PagosCursos() {
       doc.setFont('helvetica', 'normal')
       doc.text('Concepto', 25, y)
       doc.text('Monto', 90, y)
-      doc.text('Mora', 130, y)
       doc.text('Total', 165, y)
       
       doc.line(20, y + 2, ancho - 20, y + 2)
       y += 8
 
       const monto = parseFloat(datosPago.monto)
-      const mora = parseFloat(datosPago.mora) || 0
-      const total = monto + mora
+      const total = monto
 
       doc.text(`Mensualidad ${mes.name}`, 25, y)
       doc.text(`Q${monto.toFixed(2)}`, 90, y)
-      
-      if (mora > 0) {
-        doc.setTextColor(200, 0, 0)
-        doc.text(`Q${mora.toFixed(2)}`, 130, y)
-      } else {
-        doc.setTextColor(0, 128, 0)
-        doc.text('Q0.00', 130, y)
-      }
-      
       doc.setTextColor(0, 0, 0)
       doc.setFont('helvetica', 'bold')
       doc.text(`Q${total.toFixed(2)}`, 165, y)
 
       doc.setFont('helvetica', 'normal')
       doc.line(20, y + 4, ancho - 20, y + 4)
-
-      // Mensaje si hubo mora
-      if (mora > 0) {
-        y += 12
-        doc.setFillColor(255, 245, 200)
-        doc.rect(20, y - 4, ancho - 40, 10, 'F')
-        doc.setFont('helvetica', 'italic')
-        doc.setFontSize(9)
-        doc.setTextColor(150, 100, 0)
-        doc.text('* Se aplicó mora por pago después del día 5 del mes.', 25, y + 2)
-      }
 
       // Espacio para sello
       y = yOffset + 95
@@ -571,19 +523,6 @@ function PagosCursos() {
                   step="0.01"
                 />
               </div>
-
-              {/* Mora */}
-              {calcularMora(formPago.mes_id) > 0 && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                  <p className="text-red-600 text-sm flex items-center gap-2">
-                    <i className="bi bi-exclamation-triangle"></i>
-                    <strong>Mora aplicada:</strong> Q{calcularMora(formPago.mes_id).toFixed(2)}
-                  </p>
-                  <p className="text-red-500 text-xs mt-1">
-                    (Se aplica mora de febrero a octubre, después del día 5)
-                  </p>
-                </div>
-              )}
 
               {/* Total */}
               <div className="bg-lime-50 border border-lime-200 rounded-lg p-4">

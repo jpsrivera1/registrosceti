@@ -1018,34 +1018,10 @@ function Pagos() {
     return mesesCursoExtra.filter(mes => !mesCursoPagado(mes.id))
   }
 
-  // Calcular mora para curso (solo de abril a octubre, a partir del día 6 del mes que se está pagando)
-  const calcularMoraCurso = (mesId = null) => {
-    const fechaActual = new Date()
-    const mesActual = fechaActual.getMonth() + 1 // getMonth() devuelve 0-11
-    const diaActual = fechaActual.getDate()
-    
-    // El mes_id corresponde al número del mes (1=Enero, 2=Febrero, etc.)
-    const mesPagar = mesId ? parseInt(mesId) : 0
-    
-    // Solo aplicar mora de abril (4) a octubre (10)
-    if (mesPagar < 4 || mesPagar > 10) {
-      return 0.00
-    }
-    
-    // Aplicar mora solo si estamos en el mes que se está pagando y después del día 5
-    // O si ya pasó el mes que se está pagando
-    if (mesActual > mesPagar || (mesActual === mesPagar && diaActual > 5)) {
-      return 30.00
-    }
-    
-    return 0.00
-  }
-
-  // Calcular total con mora para curso
+  // Calcular total sin mora para curso
   const calcularTotalCurso = () => {
     const monto = parseFloat(formPagoCurso.amount) || 0
-    const mora = calcularMoraCurso(formPagoCurso.mes_id)
-    return (monto + mora).toFixed(2)
+    return monto.toFixed(2)
   }
 
   // Generar recibo PDF para curso
@@ -1126,7 +1102,6 @@ function Pagos() {
       doc.text('Concepto', 25, y)
       doc.text('Mes', 90, y)
       doc.text('Monto', 130, y)
-      doc.text('Mora', 155, y)
       doc.text('Total', 180, y)
       
       doc.line(20, y + 2, ancho - 20, y + 2)
@@ -1135,7 +1110,6 @@ function Pagos() {
       doc.text(`Curso Extra`, 25, y)
       doc.text(datosPago.month, 90, y)
       doc.text(`Q${parseFloat(datosPago.amount).toFixed(2)}`, 130, y)
-      doc.text(`Q${parseFloat(datosPago.mora || 0).toFixed(2)}`, 155, y)
       doc.setFont('helvetica', 'bold')
       doc.text(`Q${parseFloat(datosPago.total_pagado).toFixed(2)}`, 180, y)
 
@@ -1188,7 +1162,6 @@ function Pagos() {
 
     setLoadingPagoCurso(true)
     try {
-      const mora = calcularMoraCurso(formPagoCurso.month_id)
       const mesSeleccionado = mesesCursoExtra.find(m => m.id === parseInt(formPagoCurso.month_id))
       
       // Datos para el backend (usa nombres específicos)
@@ -1196,7 +1169,6 @@ function Pagos() {
         estudiante_id: estudianteSeleccionado.id,
         mes_id: parseInt(formPagoCurso.month_id),
         monto: parseFloat(formPagoCurso.amount),
-        mora: mora,
         payment_method_id: parseInt(formPagoCurso.payment_method_id)
       }
       
@@ -1212,8 +1184,7 @@ function Pagos() {
         { 
           month: mesSeleccionado?.name || '', 
           amount: formPagoCurso.amount, 
-          mora: mora,
-          total_pagado: parseFloat(formPagoCurso.amount) + mora 
+          total_pagado: parseFloat(formPagoCurso.amount)
         },
         estudianteSeleccionado,
         numeroBoleto,
@@ -1230,40 +1201,10 @@ function Pagos() {
     }
   }
 
-  // Calcular mora (solo de marzo a octubre, a partir del día 6 del mes que se está pagando)
-  const calcularMora = (mesNombre = '') => {
-    const fechaActual = new Date()
-    const mesActual = fechaActual.getMonth() + 1 // getMonth() devuelve 0-11
-    const diaActual = fechaActual.getDate()
-    
-    // Mapeo de nombres de mes a números
-    const mesesMap = {
-      'ENERO': 1, 'FEBRERO': 2, 'MARZO': 3, 'ABRIL': 4,
-      'MAYO': 5, 'JUNIO': 6, 'JULIO': 7, 'AGOSTO': 8,
-      'SEPTIEMBRE': 9, 'OCTUBRE': 10, 'NOVIEMBRE': 11, 'DICIEMBRE': 12
-    }
-    
-    const mesPagar = mesesMap[mesNombre.toUpperCase()] || 0
-    
-    // Solo aplicar mora de marzo (3) a octubre (10)
-    if (mesPagar < 3 || mesPagar > 10) {
-      return 0.00
-    }
-    
-    // Aplicar mora solo si estamos en el mes que se está pagando y después del día 5
-    // O si ya pasó el mes que se está pagando
-    if (mesActual > mesPagar || (mesActual === mesPagar && diaActual > 5)) {
-      return 30.00
-    }
-    
-    return 0.00
-  }
-
-  // Calcular total con mora
+  // Calcular total sin mora
   const calcularTotalColegiatura = () => {
     const monto = parseFloat(formColegiatura.monto_colegiatura) || 0
-    const mora = calcularMora(formColegiatura.mes)
-    return (monto + mora).toFixed(2)
+    return monto.toFixed(2)
   }
 
   // Verificar si mes está pagado
@@ -1354,7 +1295,6 @@ function Pagos() {
       doc.text('Concepto', 25, y)
       doc.text('Mes', 90, y)
       doc.text('Monto', 130, y)
-      doc.text('Mora', 155, y)
       doc.text('Total', 180, y)
       
       doc.line(20, y + 2, ancho - 20, y + 2)
@@ -1363,7 +1303,6 @@ function Pagos() {
       doc.text('Colegiatura', 25, y)
       doc.text(datosPago.mes, 90, y)
       doc.text(`Q${parseFloat(datosPago.monto_colegiatura).toFixed(2)}`, 130, y)
-      doc.text(`Q${parseFloat(datosPago.mora).toFixed(2)}`, 155, y)
       doc.setFont('helvetica', 'bold')
       doc.text(`Q${parseFloat(datosPago.total_pagado).toFixed(2)}`, 180, y)
 
@@ -2352,16 +2291,10 @@ function Pagos() {
                       <i className="bi bi-receipt me-2"></i>
                       Resumen del Pago
                     </h4>
-                    <div className="grid grid-cols-3 gap-4 text-center">
+                    <div className="grid grid-cols-2 gap-4 text-center">
                       <div>
                         <p className="text-sm text-gray-600">Colegiatura</p>
                         <p className="font-bold text-lg">Q{parseFloat(formColegiatura.monto_colegiatura || 0).toFixed(2)}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-600">Mora {calcularMora(formColegiatura.mes) > 0 ? '(Aplica)' : '(No aplica)'}</p>
-                        <p className={`font-bold text-lg ${calcularMora(formColegiatura.mes) > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                          Q{calcularMora(formColegiatura.mes).toFixed(2)}
-                        </p>
                       </div>
                       <div className="bg-yellow-100 rounded-lg p-2">
                         <p className="text-sm text-gray-600">Total a Pagar</p>
@@ -2453,7 +2386,6 @@ function Pagos() {
                         <tr>
                           <th className="px-3 py-2 text-left">Mes</th>
                           <th className="px-3 py-2 text-right">Colegiatura</th>
-                          <th className="px-3 py-2 text-right">Mora</th>
                           <th className="px-3 py-2 text-right">Total</th>
                           <th className="px-3 py-2 text-left">Fecha Pago</th>
                         </tr>
@@ -2463,11 +2395,6 @@ function Pagos() {
                           <tr key={idx} className="border-b">
                             <td className="px-3 py-2 font-medium">{pago.mes}</td>
                             <td className="px-3 py-2 text-right">Q{parseFloat(pago.monto_colegiatura).toFixed(2)}</td>
-                            <td className="px-3 py-2 text-right">
-                              <span className={pago.mora > 0 ? 'text-red-600' : ''}>
-                                Q{parseFloat(pago.mora).toFixed(2)}
-                              </span>
-                            </td>
                             <td className="px-3 py-2 text-right font-bold">Q{parseFloat(pago.total_pagado).toFixed(2)}</td>
                             <td className="px-3 py-2 text-gray-500">
                               {new Date(pago.fecha_pago).toLocaleDateString('es-GT')}
@@ -2554,16 +2481,10 @@ function Pagos() {
                       <i className="bi bi-receipt me-2"></i>
                       Resumen del Pago
                     </h4>
-                    <div className="grid grid-cols-3 gap-4 text-center">
+                    <div className="grid grid-cols-2 gap-4 text-center">
                       <div>
                         <p className="text-sm text-gray-600">Mensualidad Curso</p>
                         <p className="font-bold text-lg">Q{parseFloat(formPagoCurso.amount || 0).toFixed(2)}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-600">Mora {new Date().getDate() > 5 ? '(Aplica)' : '(No aplica)'}</p>
-                        <p className={`font-bold text-lg ${calcularMoraCurso() > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                          Q{calcularMoraCurso().toFixed(2)}
-                        </p>
                       </div>
                       <div className="bg-lime-100 rounded-lg p-2">
                         <p className="text-sm text-gray-600">Total a Pagar</p>
@@ -2655,7 +2576,6 @@ function Pagos() {
                         <tr>
                           <th className="px-3 py-2 text-left">Mes</th>
                           <th className="px-3 py-2 text-right">Monto</th>
-                          <th className="px-3 py-2 text-right">Mora</th>
                           <th className="px-3 py-2 text-right">Total</th>
                           <th className="px-3 py-2 text-left">Fecha Pago</th>
                         </tr>
@@ -2665,13 +2585,8 @@ function Pagos() {
                           <tr key={idx} className="border-b">
                             <td className="px-3 py-2 font-medium">{pago.month}</td>
                             <td className="px-3 py-2 text-right">Q{parseFloat(pago.amount).toFixed(2)}</td>
-                            <td className="px-3 py-2 text-right">
-                              <span className={(pago.mora || 0) > 0 ? 'text-red-600' : ''}>
-                                Q{parseFloat(pago.mora || 0).toFixed(2)}
-                              </span>
-                            </td>
                             <td className="px-3 py-2 text-right font-bold">
-                              Q{(parseFloat(pago.amount) + parseFloat(pago.mora || 0)).toFixed(2)}
+                              Q{parseFloat(pago.amount).toFixed(2)}
                             </td>
                             <td className="px-3 py-2 text-gray-500">
                               {new Date(pago.payment_date).toLocaleDateString('es-GT')}
