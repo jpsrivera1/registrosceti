@@ -28,7 +28,8 @@ const TIPOS_PAGO = [
   { key: 'copias_anuales', nombre: 'Pago Copias Anuales', icono: 'bi-files', color: 'orange' },
   { key: 'libro_ingles', nombre: 'Pago Libro de Inglés', icono: 'bi-translate', color: 'red' },
   { key: 'excursion', nombre: 'Pago Excursión', icono: 'bi-bus-front', color: 'teal' },
-  { key: 'especialidad', nombre: 'Pago Especialidad', icono: 'bi-award', color: 'pink' }
+  { key: 'especialidad', nombre: 'Pago Especialidad', icono: 'bi-award', color: 'pink' },
+  { key: 'dia_madre', nombre: 'Pago Día de la Madre', icono: 'bi-heart-fill', color: 'purple' }
 ]
 
 // Grados que aplican para graduación (verificación flexible)
